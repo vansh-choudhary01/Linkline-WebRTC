@@ -21,13 +21,13 @@ wss.on("connection", (ws: WebSocket) => {
 
     ws.on("close", () => {
         console.log("client disconnected");
-        users.delete(sockets.get(ws)!);
-        sockets.delete(ws);
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({type: "remove-user", userId: sockets.get(ws)}));
             }
         })
+        users.delete(sockets.get(ws)!);
+        sockets.delete(ws);
     })
 
     const userId = String(Math.floor(Math.random() * 100000));

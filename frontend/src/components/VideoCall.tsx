@@ -21,14 +21,24 @@ export default function VideoCall() {
 
   useEffect(() => {
     console.log("asking start")
-    if (!selectedVideo) return;
+    if (!selectedVideo || !selectedAudio) return;
     console.log("asking for video");
-    getCameraStream(selectedVideo, 1280, 720)
+    getCameraStream(selectedVideo, 1280, 720, selectedAudio)
       .then((stream) => {
+        const pc = peerConnectionRef.current;
+
+        for (const newTrack of stream?.getTracks()) {
+          const sender = pc?.getSenders().find(s => s.track?.kind === newTrack.kind);
+
+          sender?.replaceTrack(newTrack);
+        }
+
+        cameraStreamRef.current?.getTracks().forEach(track => track.stop());
+
         setCameraStream(stream);
         cameraStreamRef.current = stream;
       })
-  }, [selectedVideo])
+  }, [selectedVideo, selectedAudio])
 
   useEffect(() => {
     getMedia()
@@ -36,6 +46,7 @@ export default function VideoCall() {
         setVideoDevices(cameras);
         setAudioDevices(microphones);
         setSelectedVideo(cameras[0]?.deviceId);
+        setSelectedAudio(microphones[0]?.deviceId);
       }).catch((err) => {
         console.log("Camera permission/error:", err);
       })
@@ -52,19 +63,20 @@ export default function VideoCall() {
     signalingChannel.addEventListener("new-user", (data) => {
       console.log("new user", data);
       setUsers(prev => {
-        prev.add(data.userId);
-        return prev;
+        const set = new Set(prev);
+        set.add(data.userId);
+        return set;
       })
     })
 
     signalingChannel.addEventListener("remove-user", (data) => {
       console.log("user left", data);
       setUsers(prev => {
-        prev.delete(data.userId);
-        return prev;
+        const set = new Set(prev);
+        set.delete(data.userId);
+        return set;
       })
     })
-
   }, [])
 
   const signalingChannel = new SignalingChannel();

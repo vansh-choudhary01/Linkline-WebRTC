@@ -1,6 +1,9 @@
-export async function getCameraStream(cameraId: string, minWidth: number, minHeight: number) {
+export async function getCameraStream(cameraId: string, minWidth: number, minHeight: number, microphoneId: string) {
     const constraints: MediaStreamConstraints = {
-        'audio': { 'echoCancellation': true },
+        'audio': { 
+            'echoCancellation': true,
+            'deviceId': microphoneId
+        },
         'video': {
             'deviceId': cameraId,
             'width': { 'min': minWidth },
