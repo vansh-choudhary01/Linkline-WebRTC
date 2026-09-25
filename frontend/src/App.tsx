@@ -1,12 +1,10 @@
+import "./index.css"
+import "./App.css"
 import VideoCall from "./components/VideoCall"
 
 function App() {
-
-
   return (
-    <>
-      <VideoCall />
-    </>
+    <VideoCall />
   )
 }
 

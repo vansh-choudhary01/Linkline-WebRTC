@@ -24,19 +24,21 @@ wss.on("connection", (ws: WebSocket) => {
         users.delete(sockets.get(ws)!);
         sockets.delete(ws);
         wss.clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({type: "remove-user", userId: sockets.get(ws)}));
             }
         })
     })
 
     const userId = String(Math.floor(Math.random() * 100000));
+    ws.send(JSON.stringify({type: "users", users: Array.from(users.keys())}));
     users.set(userId, ws);
     sockets.set(ws, userId);
-    ws.send(JSON.stringify({type: "users", users: Array.from(users.keys())}));
     wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({type: "new-user", userId}));
         }
     })
 })
+
+console.log("server running on port 8080");

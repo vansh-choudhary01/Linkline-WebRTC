@@ -1,5 +1,5 @@
 function connectSocket() {
-    const socket = new WebSocket("ws://localhost:8088");
+    const socket = new WebSocket("ws://localhost:8080");
 
     socket.onopen = () => {
         console.log("websocket connected");
@@ -49,8 +49,9 @@ export class SignalingChannel {
 
             SignalingChannel.connection = socket;
 
-            socket.onmessage = (event) => {
-                const msg = JSON.parse(String(event));
+            socket.onmessage = ({data}) => {
+                console.log("received: ", data);
+                const msg = JSON.parse(String(data));
                 const type = msg.type || "message";
                 const callback = SignalingChannel.listeners.get(type);
                 if (callback) {
