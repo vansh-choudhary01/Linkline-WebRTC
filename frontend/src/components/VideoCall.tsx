@@ -13,6 +13,7 @@ export default function VideoCall() {
   const [selectedAudio, setSelectedAudio] = useState<string>();
   const [selectedVideo, setSelectedVideo] = useState<string>();
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const cameraStreamRef = useRef<MediaStream>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection>(null);
   const [callState, setCallState] = useState<"connected" | "not-connected">("not-connected");
@@ -25,6 +26,7 @@ export default function VideoCall() {
     getCameraStream(selectedVideo, 1280, 720)
       .then((stream) => {
         setCameraStream(stream);
+        cameraStreamRef.current = stream;
       })
   }, [selectedVideo])
 
@@ -71,8 +73,8 @@ export default function VideoCall() {
     let peerUserId;
     const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
     const peerConnection = new RTCPeerConnection(configuration);
-    cameraStream?.getTracks().forEach(track => {
-      peerConnection.addTrack(track, cameraStream);
+    cameraStreamRef.current?.getTracks().forEach(track => {
+      peerConnection.addTrack(track, cameraStreamRef.current!);
     })
     signalingChannel.addEventListener('message', async (message) => {
       if (message.data?.answer) {
@@ -93,12 +95,14 @@ export default function VideoCall() {
     signalingChannel.send({data: { 'offer': offer}, 'userId': userId });
 
     peerConnection.addEventListener('icecandidate', event => {
+      console.log("got ice candidate", event);
       if (event.candidate) {
         signalingChannel.send({data: { iceCandidate: event.candidate}, userId: peerUserId! });
       }
     });
 
     peerConnection.addEventListener('connectionstatechange', () => {
+      console.log("peer connection state changed to ", peerConnection.connectionState);
       if (peerConnection.connectionState === 'connected') {
         // Peers connected will do something here ! cool
         setCallState('connected')
@@ -108,6 +112,7 @@ export default function VideoCall() {
     })
 
     peerConnection.addEventListener('track', async (event) => {
+      console.log("got remote stream", event);
       const [remoteStream] = event.streams;
       setRemoteStream(remoteStream);
     })
@@ -117,13 +122,13 @@ export default function VideoCall() {
     let peerUserId: string;
     const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
     const peerConnection = new RTCPeerConnection(configuration);
-    cameraStream?.getTracks().forEach(track => {
-      peerConnection.addTrack(track, cameraStream);
-    })
-
+    
     const messageCallback = async (message: eventDataType) => {
       if (message.data?.offer) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(message.data?.offer));
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data?.offer));
+        cameraStreamRef.current?.getTracks().forEach(track => {
+          peerConnection.addTrack(track, cameraStreamRef.current!);
+        })
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         signalingChannel.send({data: { 'answer': answer}, userId: message.userId });
@@ -141,6 +146,7 @@ export default function VideoCall() {
     signalingChannel.addEventListener('message', messageCallback);
 
     const icecandidateCallback = (event: RTCPeerConnectionIceEvent) => {
+      console.log("got ice candidate", event);
       if (event.candidate) {
         signalingChannel.send({data: { iceCandidate: event.candidate}, userId: peerUserId!});
       }
@@ -149,8 +155,14 @@ export default function VideoCall() {
     peerConnection.addEventListener('icecandidate', icecandidateCallback);
 
     const connectionStatechangeCallback = () => {
+      console.log("peer connection state changed to ", peerConnection.connectionState);
       if (peerConnection.connectionState === 'connected') {
         // Peers connected will do something here ! cool
+        cameraStreamRef.current?.getTracks().forEach(track => {
+          peerConnection.addTrack(track, cameraStreamRef.current!);
+          console.log("added track", track);
+        })
+        console.log("cameraStreamRef.current: ", cameraStreamRef.current)
         setCallState('connected')
       } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "closed" || peerConnection.connectionState === "failed") {
         setCallState("not-connected");
@@ -160,6 +172,7 @@ export default function VideoCall() {
     peerConnection.addEventListener('connectionstatechange', connectionStatechangeCallback);
 
     const trackCallback = async (event: RTCTrackEvent) => {
+      console.log("got remote stream", event.streams);
       const [remoteStream] = event.streams;
       setRemoteStream(remoteStream);
     }
