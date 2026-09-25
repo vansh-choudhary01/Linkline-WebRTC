@@ -16,6 +16,7 @@ export default function VideoCall() {
   const cameraStreamRef = useRef<MediaStream>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection>(null);
+  const [recieverUserId, setRecieverUserId] = useState<string| null>(null);
   const [callState, setCallState] = useState<"connected" | "not-connected">("not-connected");
   const [users, setUsers] = useState<Set<string>>(new Set());
 
@@ -82,6 +83,10 @@ export default function VideoCall() {
   const signalingChannel = new SignalingChannel();
 
   async function makeCall({ userId }: { userId: string }) {
+    if (recieverUserId) {
+      console.log("already in call with ", recieverUserId);
+      return;
+    };
     let peerUserId;
     const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
     const peerConnection = new RTCPeerConnection(configuration);
@@ -94,6 +99,7 @@ export default function VideoCall() {
         await peerConnection.setRemoteDescription(remoteDesc);
         peerConnectionRef.current = peerConnection;
         peerUserId = message.userId;
+        setRecieverUserId(message.userId);
       } else if (message.data?.iceCandidate) {
         try {
           await peerConnection.addIceCandidate(message.data?.iceCandidate);
@@ -120,6 +126,11 @@ export default function VideoCall() {
         setCallState('connected')
       } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "closed" || peerConnection.connectionState === "failed") {
         setCallState("not-connected");
+        peerUserId = null;
+        setRecieverUserId(null);
+        peerConnectionRef.current?.close();
+        peerConnectionRef.current = null;
+        setRemoteStream(null);
       }
     })
 
@@ -130,12 +141,22 @@ export default function VideoCall() {
     })
   }
 
+  async function endCall() {
+    if (!peerConnectionRef.current) return;
+    peerConnectionRef.current.close();
+    peerConnectionRef.current = null;
+    setRemoteStream(null);
+    setCallState("not-connected");
+    setRecieverUserId(null);
+  }
+
   useEffect(() => {
-    let peerUserId: string;
+    let peerUserId: string | null;
     const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
     const peerConnection = new RTCPeerConnection(configuration);
     
     const messageCallback = async (message: eventDataType) => {
+      if (peerUserId) return; // already connected with someone
       if (message.data?.offer) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data?.offer));
         cameraStreamRef.current?.getTracks().forEach(track => {
@@ -178,6 +199,10 @@ export default function VideoCall() {
         setCallState('connected')
       } else if (peerConnection.connectionState === "disconnected" || peerConnection.connectionState === "closed" || peerConnection.connectionState === "failed") {
         setCallState("not-connected");
+        peerUserId = null;
+        peerConnectionRef.current?.close();
+        peerConnectionRef.current = null;
+        setRemoteStream(null);
       }
     }
 
@@ -288,7 +313,7 @@ export default function VideoCall() {
             </div>
 
             <div className="video-tile video-tile--local">
-              <VideoPreview userStream={cameraStream} />
+              <VideoPreview userStream={cameraStream} self={true}/>
               <div className="video-tile__topline">
                 <span className="video-label"><span className="video-label__dot video-label__dot--you" /> YOU</span>
                 <span className="video-tile__signal">Live preview</span>
@@ -311,8 +336,16 @@ export default function VideoCall() {
           </div>
 
           <div className="stage-footer">
-            <span className="stage-footer__status"><span className="stage-footer__dot" /> Your camera and microphone are ready</span>
-            <span className="stage-footer__note">Peer-to-peer connection</span>
+            <div className="stage-footer__details">
+              <span className="stage-footer__status"><span className="stage-footer__dot" /> Your camera and microphone are ready</span>
+              <span className="stage-footer__note">Peer-to-peer connection</span>
+            </div>
+            {(callState === "connected" || remoteStream !== null) && <button type="button" className="end-call-btn" onClick={endCall} aria-label="End call">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              <span>End call</span>
+            </button>}
           </div>
         </section>
 
@@ -434,7 +467,7 @@ function UserList({ users, onCall }: { users: Set<string>, onCall: ({ userId }: 
   </div>
 }
 
-function VideoPreview({ userStream }: { userStream: MediaStream | null }) {
+function VideoPreview({ userStream, self }: { userStream: MediaStream | null, self?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -443,6 +476,6 @@ function VideoPreview({ userStream }: { userStream: MediaStream | null }) {
     }
   }, [userStream]);
   return <>
-    <video ref={videoRef} className="video-element" id="localVideo" autoPlay playsInline controls={false} width="640" height="480" muted></video>
+    <video ref={videoRef} className="video-element" id="localVideo" autoPlay playsInline controls={false} width="640" height="480" {...self ? { muted: true } : {}}></video>
   </>
 }

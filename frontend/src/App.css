@@ -75,6 +75,7 @@
 .device-status,
 .stage-tools,
 .stage-footer,
+.stage-footer__details,
 .stage-footer__status,
 .privacy-card,
 .call-btn {
@@ -524,6 +525,11 @@ h1 {
   font-weight: 600;
 }
 
+.stage-footer__details {
+  gap: 15px;
+  min-width: 0;
+}
+
 .stage-footer__status {
   gap: 8px;
 }
@@ -535,6 +541,39 @@ h1 {
 
 .stage-footer__note {
   color: #656a83;
+}
+
+.end-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 13px;
+  color: #ffb8b8;
+  border: 1px solid rgba(255, 125, 125, 0.28);
+  border-radius: 9px;
+  background: rgba(211, 70, 79, 0.16);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.end-call-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 142, 142, 0.65);
+  background: #c94755;
+  transform: translateY(-1px);
+}
+
+.end-call-btn:active {
+  transform: translateY(0);
+}
+
+.end-call-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .info-strip {
@@ -1014,6 +1053,16 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .stage-footer__details {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .end-call-btn {
+    width: 100%;
   }
 
   .control-column {
