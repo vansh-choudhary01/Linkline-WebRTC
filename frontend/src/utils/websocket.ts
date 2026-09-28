@@ -59,7 +59,7 @@ export type socketMessageTypes = {
         producerId: string,
         kind: mediasoupClient.types.MediaKind,
         rtpParameters: mediasoupClient.types.RtpParameters,
-        paused: boolean
+        owner: string
     }
 } | {
     type: "existing-producers",
@@ -71,7 +71,12 @@ export type socketMessageTypes = {
     data: {
         producerId: string
     }
-} 
+} | {
+    type: "user-left",
+    data: {
+        userId: string
+    }
+}
 | {
     data: {
         answer: RTCSessionDescriptionInit,
@@ -83,7 +88,7 @@ export type socketMessageTypes = {
     type: eventType
 };
 
-type mediasoupTypes = "load-routerRtpCapabilities" | "transport-created" | "transport-connected" | "producer-created" | "recv-transport-created" | "recv-transport-connected" | "existing-producers" | "new-producer" | "consumer-created"
+type mediasoupTypes = "load-routerRtpCapabilities" | "transport-created" | "transport-connected" | "producer-created" | "recv-transport-created" | "recv-transport-connected" | "existing-producers" | "new-producer" | "consumer-created" | "user-left"
 
 type eventType = 'message' | 'users' | 'new-user' | 'remove-user'
 

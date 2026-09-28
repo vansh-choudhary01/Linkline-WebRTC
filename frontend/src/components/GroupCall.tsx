@@ -10,9 +10,12 @@ function getRoomId() {
 function GroupCal() {
     const roomId = getRoomId();
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [remoteStreams, setRemoteStreams] = useState<{ kind: "video" | "audio", stream: MediaStream }[]>([]);
+    const [remoteStreams, setRemoteStreams] = useState<{ kind: "video" | "audio", stream: MediaStream, owner: string }[]>([]);
     const signalingChannel = new SignalingChannel();
-    
+    const [callState, setCallState] = useState<"connected" | "not-connected">("connected");
+    const [sendTransport, setSendTransport] = useState<mediasoupClient.types.Transport | null>(null);
+    const [recvTransport, setRecvTransport] = useState<mediasoupClient.types.Transport | null>(null);
+
     useEffect(() => {
         let device: mediasoupClient.types.Device;
         let sendTransport: mediasoupClient.types.Transport;
@@ -26,7 +29,6 @@ function GroupCal() {
         const producerCallbackes = new Map();
 
         function joinGroup(roomId: string) {
-            console.log("joinging roomId: ", roomId)
             signalingChannel.send({
                 type: "join-room",
                 data: {
@@ -37,7 +39,6 @@ function GroupCal() {
         joinGroup(roomId);
 
         const load_routerRtpCapabilities = async (message: socketMessageTypes) => {
-            console.log("load router rtp capabilities", message);
             if (message.type !== "load-routerRtpCapabilities") return;
             let data = message.data;
 
@@ -67,6 +68,7 @@ function GroupCal() {
                 iceCandidates: data.iceCandidates,
                 dtlsParameters: data.dtlsParameters,
             });
+            setSendTransport(sendTransport);
 
             sendTransport.on("connect", ({ dtlsParameters }, callback, _errback) => {
                 sendTransportConnectCallback = callback;
@@ -120,6 +122,7 @@ function GroupCal() {
                 iceCandidates: data.iceCandidates,
                 dtlsParameters: data.dtlsParameters,
             })
+            setRecvTransport(recvTransport);
 
             recvTransport.on("connect", ({ dtlsParameters }, callback, _errback) => {
                 recvTransportConnectCallback = callback;
@@ -148,9 +151,6 @@ function GroupCal() {
 
             recvTransportConnectCallback = undefined;
 
-            console.log(
-                "Receive transport connected"
-            );
         };
 
         signalingChannel.addEventListener("recv-transport-connected", recv_transport_connected);
@@ -194,7 +194,7 @@ function GroupCal() {
 
             const stream = new MediaStream([consumer.track]);
 
-            setRemoteStreams(streams => [...streams, { kind: data.kind, stream }]);
+            setRemoteStreams(streams => [...streams, { kind: data.kind, stream, owner: data.owner }]);
 
             signalingChannel.send({
                 type: "resume-consumer",
@@ -206,6 +206,17 @@ function GroupCal() {
         }
 
         signalingChannel.addEventListener("consumer-created", consumer_created)
+
+        const user_left = (message: socketMessageTypes) => {
+            if (message.type !== "user-left") return;
+
+            setRemoteStreams(streams => streams.filter(data => {
+                data.stream.getTracks().forEach(track => track.stop());
+                return data.owner !== message.data.userId;
+            }));
+        }
+
+        signalingChannel.addEventListener("user-left", user_left);
 
         async function startCamera() {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -255,8 +266,29 @@ function GroupCal() {
             signalingChannel.removeEventListener("recv-transport-connected", recv_transport_connected);
             signalingChannel.removeEventListener("existing-producers", existing_producers);
             signalingChannel.removeEventListener("new-producer", new_producer);
+            signalingChannel.removeEventListener("consumer-created", consumer_created);
+            signalingChannel.removeEventListener("user-left", user_left);
         }
     }, [])
+
+    function endCall() {
+        signalingChannel.send({
+            type: "leave",
+            data: {
+                roomId
+            }
+        });
+
+        sendTransport?.close();
+        recvTransport?.close();
+        remoteStreams.forEach((data) => data.stream.getTracks().forEach(track => track.stop()));
+        setSendTransport(null);
+        setRecvTransport(null);
+        setLocalStream(null);
+        setCallState("not-connected")
+        setRemoteStreams([]);
+    }
+
 
     return <div className="app-shell group-call-shell">
         <div className="ambient-glow ambient-glow--top" aria-hidden="true" />
@@ -369,7 +401,15 @@ function GroupCal() {
                             <span className="stage-footer__status"><span className="stage-footer__dot" /> Your camera and microphone are ready</span>
                             <span className="stage-footer__note">Media server connected</span>
                         </div>
-                        <span className="group-room-status"><span className="group-room-status__dot" /> Open room</span>
+                        <div>
+                            <span className="group-room-status"><span className="group-room-status__dot" /> Open room</span>
+                            {(callState === "connected") && <button type="button" className="end-call-btn" onClick={endCall} aria-label="End call">
+                                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                    <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                                </svg>
+                                <span>End call</span>
+                            </button>}
+                        </div>
                     </div>
                 </section>
 

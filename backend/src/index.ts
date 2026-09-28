@@ -6,7 +6,7 @@ dotenv.config();
 const wss = new WebSocketServer({ port: 8080 });
 
 const users = new Map<string, WebSocket>();
-const sockets = new Map<WebSocket, string>();
+const sockets = new Map<WebSocket, { userId: string, connected: "online" | "group" | null, roomId?: string }>();
 type roomsType = {
     router: mediasoup.types.Router;
     producers: Map<string, mediasoup.types.Producer>;
@@ -105,7 +105,7 @@ wss.on("connection", (ws: WebSocket) => {
                 case "device-loaded":
                     {
                         const { roomId } = event.data;
-                        if (!roomId ) {
+                        if (!roomId) {
                             throw new Error("roomId isn't available");
                         }
                         if (!rooms.has(roomId)) return;
@@ -132,6 +132,8 @@ wss.on("connection", (ws: WebSocket) => {
                         });
 
                         room?.peers.add(userId);
+                        sockets.get(ws)!.connected = "group";
+                        sockets.get(ws)!.roomId = roomId;
 
                         ws.send(JSON.stringify({
                             type: "transport-created",
@@ -202,7 +204,7 @@ wss.on("connection", (ws: WebSocket) => {
                             const socket = users.get(client)!;
                             if (
                                 socket !== ws &&
-                                socket.readyState === WebSocket.OPEN
+                                socket?.readyState === WebSocket.OPEN
                             ) {
                                 socket.send(JSON.stringify({
                                     type: "new-producer",
@@ -271,7 +273,8 @@ wss.on("connection", (ws: WebSocket) => {
                                 id: consumer.id,
                                 producerId: event.data.producerId,
                                 kind: consumer.kind,
-                                rtpParameters: consumer.rtpParameters
+                                rtpParameters: consumer.rtpParameters,
+                                owner: sockets.get(room!.producerOwners.get(event.data.producerId)!)?.userId
                             }
                         }));
 
@@ -297,26 +300,8 @@ wss.on("connection", (ws: WebSocket) => {
                     }
                 case "leave":
                     {
-                        const room = rooms.get(event.data.roomId);
-                        if (room) {
-                            room.producers.forEach((producer, id) => {
-                                if (room.producerOwners.get(id) === ws) {
-                                    producer.close();
-                                    room.producers.delete(id);
-                                    room.producerOwners.delete(id);
-                                }
-                            })
-
-                            room.peers.delete(event.data.userId);
-                            if (room.peers.size === 0) {
-                                rooms.delete(event.data.roomId);
-                                room.router.close();
-                                workers.get(event.data.roomId)?.close();
-                                workers.delete(event.data.roomId);
-                            } else {
-                                rooms.set(event.data.roomId, room);
-                            }
-                        }
+                        const { roomId } = event.data;
+                        leaveRoom(roomId);
                     }
             }
 
@@ -330,22 +315,69 @@ wss.on("connection", (ws: WebSocket) => {
         }
     });
 
-    ws.on("close", () => {
-        console.log("client disconnected");
+    function leaveRoom(roomId: string) {
+        try {
+            const room = rooms.get(roomId);
+            if (room) {
+                room.producers.forEach((producer, id) => {
+                    if (room.producerOwners.get(id) === ws) {
+                        producer.close();
+                        room.producers.delete(id);
+                        room.producerOwners.delete(id);
+                    }
 
+                    // tell other users about new producer
+                    for (const client of room.peers) {
+                        const socket = users.get(client)!;
+                        if (
+                            socket !== ws &&
+                            socket?.readyState === WebSocket.OPEN
+                        ) {
+                            socket.send(JSON.stringify({
+                                type: "user-left",
+                                data: {
+                                    userId
+                                }
+                            }));
+                        }
+                    }
+                })
+
+                room.peers.delete(userId);
+                if (room.peers.size === 0) {
+                    rooms.delete(roomId);
+                    room.router.close();
+                    workers.get(roomId)?.close();
+                    workers.delete(roomId);
+                } else {
+                    rooms.set(roomId, room);
+                }
+            }
+        } catch (error) {
+            console.error(
+                "WebSocket error:",
+                error
+            );
+        }
+    }
+
+    ws.on("close", () => {
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify({ type: "remove-user", userId: sockets.get(ws) }));
             }
         })
-        users.delete(sockets.get(ws)!);
+        users.delete(sockets.get(ws)?.userId!);
+        if (sockets.get(ws)?.connected === "group") {
+            leaveRoom(sockets.get(ws)!.roomId!);
+        }
         sockets.delete(ws);
     })
 
     const userId = String(Math.floor(Math.random() * 100000));
     ws.send(JSON.stringify({ type: "users", users: Array.from(users.keys()) }));
     users.set(userId, ws);
-    sockets.set(ws, userId);
+    sockets.set(ws, { userId, connected: null });
     wss.clients.forEach((client) => {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: "new-user", userId }));
