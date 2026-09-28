@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SignalingChannel, type socketMessageTypes } from "../utils/websocket";
 import * as mediasoupClient from "mediasoup-client";
-import { VideoPreview } from "./VideoCall";
+import { AudioPreview, VideoPreview } from "./VideoCall";
 
 function getRoomId() {
     return window.location.pathname.split("/")[1];
@@ -404,6 +404,13 @@ function GroupCal() {
                                 <span>Participant {i + 1}</span>
                             </div>
                         </div> : null)}
+
+                        {remoteStreams.map((data, i) => data.kind === "audio" ? (
+                            <AudioPreview
+                                key={`${data.owner}-audio-${i}`}
+                                userStream={data.stream}
+                            />
+                        ) : null)}
 
                         {remoteStreams.filter((data) => data.kind === "video").length === 0 && <div className="group-waiting-tile">
                             <div className="group-waiting-tile__icon" aria-hidden="true">

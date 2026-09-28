@@ -489,7 +489,7 @@ export function VideoPreview({ userStream, self }: { userStream: MediaStream | n
 }
 
 export function AudioPreview({ userStream, self }: { userStream: MediaStream | null, self?: boolean }) {
-  const audioRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   
   useEffect(() => {
     if (audioRef.current) {
@@ -497,6 +497,6 @@ export function AudioPreview({ userStream, self }: { userStream: MediaStream | n
     }
   }, [userStream]);
   return <>
-    <audio ref={audioRef} className="audio-element" id="localVideo" autoPlay playsInline controls={false} {...self ? { muted: true } : {}}></audio>
+    <audio ref={audioRef} className="audio-element" autoPlay playsInline controls={false} {...self ? { muted: true } : {}}></audio>
   </>
 }
