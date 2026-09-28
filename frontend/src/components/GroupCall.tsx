@@ -3,11 +3,16 @@ import { SignalingChannel, type socketMessageTypes } from "../utils/websocket";
 import * as mediasoupClient from "mediasoup-client";
 import { VideoPreview } from "./VideoCall";
 
-function GroupCal({roomId}: {roomId: string}) {
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [remoteStreams, setRemoteStreams] = useState<{kind: "video" | "audio", stream: MediaStream}[]>([]);
-    const signalingChannel = new SignalingChannel();
+function getRoomId() {
+    return window.location.pathname.split("/")[1];
+}
 
+function GroupCal() {
+    const roomId = getRoomId();
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const [remoteStreams, setRemoteStreams] = useState<{ kind: "video" | "audio", stream: MediaStream }[]>([]);
+    const signalingChannel = new SignalingChannel();
+    
     useEffect(() => {
         let device: mediasoupClient.types.Device;
         let sendTransport: mediasoupClient.types.Transport;
@@ -19,6 +24,17 @@ function GroupCal({roomId}: {roomId: string}) {
         let recvTransportConnectCallback: undefined | { (): void };
 
         const producerCallbackes = new Map();
+
+        function joinGroup(roomId: string) {
+            console.log("joinging roomId: ", roomId)
+            signalingChannel.send({
+                type: "join-room",
+                data: {
+                    roomId
+                }
+            })
+        }
+        joinGroup(roomId);
 
         const load_routerRtpCapabilities = async (message: socketMessageTypes) => {
             console.log("load router rtp capabilities", message);
@@ -79,10 +95,10 @@ function GroupCal({roomId}: {roomId: string}) {
 
             await startCamera();
         }
-        
+
         signalingChannel.addEventListener("transport-created", transport_created);
 
-        const transport_connected =  async (message: socketMessageTypes) => {
+        const transport_connected = async (message: socketMessageTypes) => {
             if (message.type !== "transport-connected") return;
 
             sendTransportConnectCallback?.();
@@ -178,7 +194,7 @@ function GroupCal({roomId}: {roomId: string}) {
 
             const stream = new MediaStream([consumer.track]);
 
-            setRemoteStreams(streams => [...streams, {kind: data.kind, stream }]);
+            setRemoteStreams(streams => [...streams, { kind: data.kind, stream }]);
 
             signalingChannel.send({
                 type: "resume-consumer",
@@ -240,7 +256,7 @@ function GroupCal({roomId}: {roomId: string}) {
             signalingChannel.removeEventListener("existing-producers", existing_producers);
             signalingChannel.removeEventListener("new-producer", new_producer);
         }
-    }, [roomId])
+    }, [])
 
     return <div className="app-shell group-call-shell">
         <div className="ambient-glow ambient-glow--top" aria-hidden="true" />

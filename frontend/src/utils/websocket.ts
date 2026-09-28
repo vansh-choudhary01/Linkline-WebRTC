@@ -160,6 +160,7 @@ interface sendEventType {
 export class SignalingChannel {
     private static connection: WebSocket;
     private static listeners: Map<string, (data: socketMessageTypes) => void>;
+    private static onOpenSender: (() => void)[] = [];
 
     constructor() {
         if (!SignalingChannel.connection) {
@@ -174,6 +175,12 @@ export class SignalingChannel {
                 const callback = SignalingChannel.listeners.get(type);
                 if (callback) {
                     callback(msg);
+                }
+            }
+
+            socket.onopen = () => {
+                for (const cb of SignalingChannel.onOpenSender) {
+                    cb();
                 }
             }
         }
@@ -191,8 +198,14 @@ export class SignalingChannel {
             SignalingChannel.listeners.delete(type);
         }
     }
-
+    
     send(event: socketSendEventTypes) {
+        if (SignalingChannel.connection.readyState !== WebSocket.OPEN) {
+            SignalingChannel.onOpenSender.push(() => {
+                SignalingChannel.connection.send(JSON.stringify(event));
+            })
+            return;
+        }
         console.log("sending: ", event);
         SignalingChannel.connection.send(JSON.stringify(event));
     }
