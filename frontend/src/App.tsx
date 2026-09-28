@@ -4,7 +4,6 @@ import VideoCall from "./components/VideoCall"
 import GroupCall from "./components/GroupCall";
 import { useState } from "react";
 import { createBrowserRouter, Outlet, useLocation, useNavigate } from "react-router";
-import { SignalingChannel } from "./utils/websocket";
 
 export const routes = createBrowserRouter([{
   path: "/",

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignalingChannel, type socketMessageTypes } from "../utils/websocket";
 import * as mediasoupClient from "mediasoup-client";
 import { VideoPreview } from "./VideoCall";
@@ -12,9 +12,10 @@ function GroupCal() {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<{ kind: "video" | "audio", stream: MediaStream, owner: string }[]>([]);
     const signalingChannel = new SignalingChannel();
-    const [callState, setCallState] = useState<"connected" | "not-connected">("connected");
+    const callState = useRef<"connected" | "not-connected">("not-connected");
     const [sendTransport, setSendTransport] = useState<mediasoupClient.types.Transport | null>(null);
     const [recvTransport, setRecvTransport] = useState<mediasoupClient.types.Transport | null>(null);
+    const [refresh, setRefresh] = useState<boolean>(true);
 
     useEffect(() => {
         let device: mediasoupClient.types.Device;
@@ -29,6 +30,8 @@ function GroupCal() {
         const producerCallbackes = new Map();
 
         function joinGroup(roomId: string) {
+            if (callState.current === "connected") return;
+            callState.current = "connected";
             signalingChannel.send({
                 type: "join-room",
                 data: {
@@ -211,8 +214,11 @@ function GroupCal() {
             if (message.type !== "user-left") return;
 
             setRemoteStreams(streams => streams.filter(data => {
-                data.stream.getTracks().forEach(track => track.stop());
-                return data.owner !== message.data.userId;
+                if( data.owner === message.data.userId ) {
+                    data.stream.getTracks().forEach(track => track.stop());
+                    return false;
+                }
+                return true;
             }));
         }
 
@@ -269,7 +275,7 @@ function GroupCal() {
             signalingChannel.removeEventListener("consumer-created", consumer_created);
             signalingChannel.removeEventListener("user-left", user_left);
         }
-    }, [])
+    }, [refresh])
 
     function endCall() {
         signalingChannel.send({
@@ -284,9 +290,17 @@ function GroupCal() {
         remoteStreams.forEach((data) => data.stream.getTracks().forEach(track => track.stop()));
         setSendTransport(null);
         setRecvTransport(null);
+        localStream?.getTracks().forEach(track => track.stop());
         setLocalStream(null);
-        setCallState("not-connected")
+        // setCallState("not-connected")
+        callState.current = "not-connected";
         setRemoteStreams([]);
+    }
+
+    function handleJoin() {
+        if (callState.current === "not-connected") {
+            setRefresh(refresh => !refresh);
+        }
     }
 
 
@@ -403,11 +417,16 @@ function GroupCal() {
                         </div>
                         <div>
                             <span className="group-room-status"><span className="group-room-status__dot" /> Open room</span>
-                            {(callState === "connected") && <button type="button" className="end-call-btn" onClick={endCall} aria-label="End call">
+                            {(callState.current === "connected") ? <button type="button" className="end-call-btn" onClick={endCall} aria-label="End call">
                                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
                                     <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                                 </svg>
                                 <span>End call</span>
+                            </button> : <button type="button" className="join-call-btn" onClick={handleJoin} aria-label="End call">
+                                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                    <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                                </svg>
+                                <span>Re-Join call</span>
                             </button>}
                         </div>
                     </div>
