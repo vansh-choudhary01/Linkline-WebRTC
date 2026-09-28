@@ -98,6 +98,11 @@ function GroupCal() {
                 })
             })
 
+            signalingChannel.addEventListener("producer-created", message => {
+                if (message.type !== "producer-created") return;
+                producerCallbackes.get(message.data.kind)?.({ id: message.data.id })
+            });
+
             await startCamera();
         }
 
@@ -150,6 +155,7 @@ function GroupCal() {
 
         const recv_transport_connected = (message: socketMessageTypes) => {
             if (message.type !== "recv-transport-connected") return;
+
             recvTransportConnectCallback?.();
 
             recvTransportConnectCallback = undefined;
@@ -206,6 +212,7 @@ function GroupCal() {
                     roomId
                 }
             })
+
         }
 
         signalingChannel.addEventListener("consumer-created", consumer_created)
@@ -422,11 +429,11 @@ function GroupCal() {
                                     <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
                                 </svg>
                                 <span>End call</span>
-                            </button> : <button type="button" className="join-call-btn" onClick={handleJoin} aria-label="End call">
+                            </button> : <button type="button" className="join-call-btn" onClick={handleJoin} aria-label="Rejoin call">
                                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                                    <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                                    <path d="M16.5 8A6.5 6.5 0 0 0 4.7 5.2L3 7M3 7V3.5M3 7h3.5M3.5 12a6.5 6.5 0 0 0 11.8 2.8L17 13M17 13v3.5M17 13h-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
-                                <span>Re-Join call</span>
+                                <span>Rejoin call</span>
                             </button>}
                         </div>
                     </div>

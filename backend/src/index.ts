@@ -59,8 +59,10 @@ wss.on("connection", (ws: WebSocket) => {
                 socket?.send(JSON.stringify({
                     type: "message",
                     data: event.data,
-                    userId: sockets.get(ws)
+                    userId: sockets.get(ws)?.userId
                 }))
+
+                return;
             }
 
             // get
@@ -199,6 +201,8 @@ wss.on("connection", (ws: WebSocket) => {
                         room?.producerOwners.set(producer.id, ws);
                         rooms.set(roomId, room);
 
+                        ws.send(JSON.stringify({ type: "producer-created", data: { id: producer.id, kind: producer.kind } }));
+
                         // tell other users about new producer
                         for (const client of room.peers) {
                             const socket = users.get(client)!;
@@ -226,7 +230,6 @@ wss.on("connection", (ws: WebSocket) => {
                         await recvTransport.connect({
                             dtlsParameters: event.data.dtlsParameters,
                         })
-
 
                         ws.send(JSON.stringify({
                             type: "recv-transport-connected"

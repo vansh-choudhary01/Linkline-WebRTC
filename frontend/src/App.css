@@ -1311,6 +1311,46 @@ h1 {
   box-shadow: 0 0 0 3px rgba(85, 207, 166, 0.12);
 }
 
+.group-stage .stage-footer > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.join-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 13px;
+  color: #c8c4ff;
+  border: 1px solid rgba(151, 145, 255, 0.3);
+  border-radius: 9px;
+  background: rgba(98, 88, 237, 0.18);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.join-call-btn:hover {
+  color: #fff;
+  border-color: rgba(174, 169, 255, 0.72);
+  background: var(--violet);
+  box-shadow: 0 7px 16px rgba(98, 88, 237, 0.23);
+  transform: translateY(-1px);
+}
+
+.join-call-btn:active {
+  transform: translateY(0);
+}
+
+.join-call-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
 .group-control-column {
   display: flex;
   flex-direction: column;
@@ -1433,6 +1473,11 @@ h1 {
 
   .group-control-column {
     display: flex;
+  }
+
+  .group-stage .stage-footer > div:last-child {
+    justify-content: space-between;
+    width: 100%;
   }
 }
 
