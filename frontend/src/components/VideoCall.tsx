@@ -19,6 +19,7 @@ export default function VideoCall() {
   const [recieverUserId, setRecieverUserId] = useState<string| null>(null);
   const [callState, setCallState] = useState<"connected" | "not-connected">("not-connected");
   const [users, setUsers] = useState<Set<string>>(new Set());
+  const [refresh, setRefresh] = useState<boolean>(true);
 
   useEffect(() => {
     console.log("asking start")
@@ -152,6 +153,7 @@ export default function VideoCall() {
     setRemoteStream(null);
     setCallState("not-connected");
     setRecieverUserId(null);
+    setRefresh(refresh => !refresh);
   }
 
   useEffect(() => {
@@ -208,6 +210,7 @@ export default function VideoCall() {
         peerConnectionRef.current?.close();
         peerConnectionRef.current = null;
         setRemoteStream(null);
+        setRefresh(refresh => !refresh);
       }
     }
 
@@ -227,7 +230,7 @@ export default function VideoCall() {
       peerConnection.removeEventListener('connectionstatechange', connectionStatechangeCallback)
       peerConnection.removeEventListener('track', trackCallback);
     }
-  }, []);
+  }, [refresh]);
 
   return <div className="app-shell">
     <div className="ambient-glow ambient-glow--top" aria-hidden="true" />
