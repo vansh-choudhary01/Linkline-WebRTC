@@ -367,7 +367,7 @@ wss.on("connection", (ws: WebSocket) => {
     ws.on("close", () => {
         wss.clients.forEach((client) => {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ type: "remove-user", userId: sockets.get(ws) }));
+                client.send(JSON.stringify({ type: "remove-user", userId: sockets.get(ws)?.userId }));
             }
         })
         users.delete(sockets.get(ws)?.userId!);
