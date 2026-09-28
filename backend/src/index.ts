@@ -1,5 +1,7 @@
 import { WebSocket, WebSocketServer } from "ws";
 import * as mediasoup from "mediasoup";
+import dotenv from "dotenv";
+dotenv.config();
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -67,7 +69,7 @@ wss.on("connection", (ws: WebSocket) => {
             // leave
 
             switch (event.type) {
-                case "join":
+                case "join-room":
                     {
                         const { roomId } = event.data;
                         // is router is already available for this room
@@ -102,9 +104,9 @@ wss.on("connection", (ws: WebSocket) => {
                     }
                 case "device-loaded":
                     {
-                        const { roomId, userId } = event.data;
-                        if (!roomId || !userId) {
-                            throw new Error("roomId or userId isn't available");
+                        const { roomId } = event.data;
+                        if (!roomId ) {
+                            throw new Error("roomId isn't available");
                         }
                         if (!rooms.has(roomId)) return;
                         const room = rooms.get(roomId);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { getCameraStream, getMedia } from "../utils/media";
-import { SignalingChannel, type eventDataType } from "../utils/websocket";
+import { SignalingChannel, type socketMessageTypes } from "../utils/websocket";
 
 async function getConnectedDevices(type: string) {
   const devices = await navigator.mediaDevices.enumerateDevices();
@@ -58,10 +58,12 @@ export default function VideoCall() {
     })
 
     signalingChannel.addEventListener("users", (data) => {
+      if (data.type !== "users") return;
       console.log("users updated", data);
       setUsers(new Set(data.users));
     });
     signalingChannel.addEventListener("new-user", (data) => {
+      if (data.type !== "new-user") return;
       console.log("new user", data);
       setUsers(prev => {
         const set = new Set(prev);
@@ -71,6 +73,7 @@ export default function VideoCall() {
     })
 
     signalingChannel.addEventListener("remove-user", (data) => {
+      if (data.type !== "remove-user") return;
       console.log("user left", data);
       setUsers(prev => {
         const set = new Set(prev);
@@ -94,6 +97,7 @@ export default function VideoCall() {
       peerConnection.addTrack(track, cameraStreamRef.current!);
     })
     signalingChannel.addEventListener('message', async (message) => {
+      if (message.type !== "message") return;
       if (message.data?.answer) {
         const remoteDesc = new RTCSessionDescription(message.data?.answer);
         await peerConnection.setRemoteDescription(remoteDesc);
@@ -155,7 +159,8 @@ export default function VideoCall() {
     const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] };
     const peerConnection = new RTCPeerConnection(configuration);
     
-    const messageCallback = async (message: eventDataType) => {
+    const messageCallback = async (message: socketMessageTypes) => {
+      if (message.type !== "message") return;
       if (peerUserId) return; // already connected with someone
       if (message.data?.offer) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(message.data?.offer));
@@ -467,7 +472,7 @@ function UserList({ users, onCall }: { users: Set<string>, onCall: ({ userId }: 
   </div>
 }
 
-function VideoPreview({ userStream, self }: { userStream: MediaStream | null, self?: boolean }) {
+export function VideoPreview({ userStream, self }: { userStream: MediaStream | null, self?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -477,5 +482,18 @@ function VideoPreview({ userStream, self }: { userStream: MediaStream | null, se
   }, [userStream]);
   return <>
     <video ref={videoRef} className="video-element" id="localVideo" autoPlay playsInline controls={false} width="640" height="480" {...self ? { muted: true } : {}}></video>
+  </>
+}
+
+export function AudioPreview({ userStream, self }: { userStream: MediaStream | null, self?: boolean }) {
+  const audioRef = useRef<HTMLVideoElement>(null);
+  
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.srcObject = userStream;
+    }
+  }, [userStream]);
+  return <>
+    <audio ref={audioRef} className="audio-element" id="localVideo" autoPlay playsInline controls={false} {...self ? { muted: true } : {}}></audio>
   </>
 }
